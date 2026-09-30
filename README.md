@@ -1,4 +1,19 @@
 ````markdown
+# Performance and Security Lab
+
+Start with the [structure-first lab guide](LAB-GUIDE.md) for the project map, staged explanations, request examples, common mistakes, and run instructions.
+
+```text
+controller/  HTTP endpoints for posts and authentication
+service/     Use-case logic and cache coordination
+repository/  Spring Data JPA queries and database access
+model/       Post and comment database entities
+dto/         Validated request and response shapes
+security/    JWT service, request filter, and access rules
+config/      Spring cache configuration
+util/        AES-GCM credential encryption helper
+```
+
 # Spring Boot Fundamentals
 
 This file explains the core ideas behind a Spring Boot application, how it works internally, how Java code is compiled, how dependency injection works, how Spring manages objects, and how a web request flows through a servlet-based server.
