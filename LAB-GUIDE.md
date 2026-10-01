@@ -60,6 +60,8 @@ Spring translates the `Pageable` and `Specification` into SQL limit/offset, orde
 
 ## 2. JPQL, JOIN FETCH, and the N+1 Problem
 
+JPQL (Java Persistence Query Language) is a query language for Java entities. It uses entity and property names, not table/column names. `JOIN FETCH` loads a relationship in the same query, instead of lazily loading it later. The N+1 problem occurs when a list query loads N rows, then each row's lazy relationship triggers another query.
+
 ### Step 1: Naive version
 
 ```java
@@ -167,6 +169,10 @@ Content-Type: application/json
 ```
 
 The refresh endpoint returns a new access/refresh pair. Because this teaching implementation is stateless, an old refresh token remains usable until expiry; production-grade one-time rotation requires server-side token-family/revocation tracking. Keep refresh tokens in an appropriately protected client store (for browser apps, prefer secure HttpOnly cookies with CSRF design); never log either token.
+
+#### How AES-GCM, JWT Access and Refresh Tokens Work Together?
+
+Answer: `AesGcmEncryption` encrypts third-party credentials for storage, while `JwtService` issues signed JWTs for authentication. The access token is short-lived and used for API requests, while the refresh token is longer-lived and used to obtain new access tokens. Both tokens are validated by the server to ensure authenticity and integrity.
 
 ### Step 4: What validates the JWT
 
