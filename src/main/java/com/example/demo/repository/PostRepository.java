@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 /** Database access boundary; Spring Data generates routine CRUD implementations from this interface. */
+// JpaSpecificationExecutor 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificationExecutor<Post> {
 

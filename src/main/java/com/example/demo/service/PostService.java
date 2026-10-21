@@ -25,6 +25,7 @@ public class PostService {
         this.postRepository = postRepository;
     }
 
+    //  CacheEvict ensures that any cached post with this ID is removed, so the next read will get the new data. The cache name "postsById" matches the @Cacheable annotation in getPostById.
     @CacheEvict(value = "postsById", allEntries = true)
     public PostResponseDto createPost(PostRequestDto dto) {
         Post post = new Post(dto.getTitle(), dto.getContent(), dto.getAuthor());
@@ -34,6 +35,7 @@ public class PostService {
 
     public Page<PostResponseDto> getAllPosts(String title, String author, Pageable pageable) {
         // Add only supplied filters, letting the database filter and page before rows reach the JVM.
+        // Specification is a JPA feature that allows dynamic query construction; builder.conjunction() is a no-op predicate that can be combined with other predicates using and().
         Specification<Post> filters = (root, query, builder) -> builder.conjunction();
         if (StringUtils.hasText(title)) {
             filters = filters.and((root, query, builder) ->
@@ -46,6 +48,7 @@ public class PostService {
         return postRepository.findAll(filters, pageable).map(this::mapToDto);
     }
 
+    // Cacheable caches the result of this method in a cache named "postsById", using the post ID as the key. If the same ID is requested again, the cached value is returned instead of querying the database.
     @Cacheable(value = "postsById", key = "#id")
     public PostResponseDto getPostById(Long id) {
         // This use case needs comments, so the repository loads them with one JOIN FETCH query.

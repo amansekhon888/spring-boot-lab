@@ -1,6 +1,22 @@
 ````markdown
 # Performance and Security Lab
 
+## Social Media Scheduler (new publishing lab)
+
+The existing post CRUD and authentication API remain available. The publishing workflow adds a database-backed schedule, transactional outbox, Kafka KRaft broker in Docker Compose, retry/DLQ flow, and local mock LinkedIn/Instagram/X publishers. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the beginner guide, architecture diagram, practical labs, API references, troubleshooting, and viva questions.
+
+Run the full local workflow (Docker Desktop is the only Kafka requirement):
+
+```powershell
+docker compose up --build
+```
+
+If port 8080 is already in use, set `$env:APP_PORT='8081'` first and use `http://localhost:8081` below.
+
+Then use `/api/auth/login` to obtain a JWT (the login response has a top-level `accessToken`) and `POST /api/publishing/jobs` with JSON like `{"platform":"X","content":"Hello","scheduledAt":"2026-10-21T00:00:00Z"}` and the header `Authorization: Bearer <accessToken>`. Use the returned id with `GET /api/publishing/jobs/{id}`. Compose defaults are demo-only; use `DEMO_USER_PASSWORD`/`DEMO_ADMIN_PASSWORD` to change them. `docker compose down` stops services; `docker compose down -v` also deletes local data.
+
+For the original CRUD/auth API during development, run `./mvnw spring-boot:run`; it uses in-memory H2. The publishing scheduler and outbox need a Kafka broker, so run the Compose stack for that workflow. Verify code with `./mvnw verify` (Docker is required if you add/run Testcontainers integration tests). Real publishing is opt-in via the `real-publishers` profile and platform credentials; Instagram media publishing is intentionally not enabled for text-only jobs.
+
 Start with the [structure-first lab guide](LAB-GUIDE.md) for the project map, staged explanations, request examples, common mistakes, and run instructions.
 
 ```text

@@ -27,9 +27,17 @@
 
     </appender>
 
+    <!-- Container runtimes collect stdout; retain the rolling file for local development too. -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level [correlationId:%X{correlationId}] %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <!-- ROOT LOGGER -->
     <root level="INFO">
         <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
     </root>
 
 </configuration>
