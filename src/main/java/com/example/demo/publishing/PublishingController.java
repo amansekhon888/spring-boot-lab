@@ -9,11 +9,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/publishing")
 public class PublishingController {
-    private final PublishingService service;
     private final PublicationRepository repository;
 
-    public PublishingController(PublishingService s, PublicationRepository r) {
-        service = s;
+    public PublishingController(PublicationRepository r) {
         repository = r;
     }
 
@@ -24,7 +22,7 @@ public class PublishingController {
     @PostMapping("/jobs")
     public ResponseEntity<Map<String, Object>> schedule(
             @jakarta.validation.Valid @RequestBody ScheduleRequest request) {
-        var job = service.schedule(request.platform(), request.content(), request.scheduledAt());
+        var job = repository.save(new ScheduledPublication(request.platform(), request.content(), request.scheduledAt()));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("id", job.getId(), "status", job.getStatus(), "scheduledAt", job.getScheduledAt()));
     }

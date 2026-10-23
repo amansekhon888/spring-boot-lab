@@ -2,11 +2,10 @@
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Copy pom.xml and source code directly
+# Copy the build file first so Docker can cache dependency downloads.
 COPY pom.xml .
-RUN mvn -B dependency:go-offline
 COPY src ./src
-RUN mvn -B clean package -DskipTests
+RUN mvn -B package -Dmaven.test.skip=true
 
 # Stage 2: Lightweight runtime environment
 FROM eclipse-temurin:17-jre-alpine

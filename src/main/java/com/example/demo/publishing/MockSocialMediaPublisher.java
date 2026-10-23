@@ -1,23 +1,16 @@
 package com.example.demo.publishing;
 
+import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
  * Local demo adapter makes no network calls and needs no developer account or
  * paid service.
  */
+@Component
 public class MockSocialMediaPublisher implements SocialMediaPublisher {
-    private final Platform platform;
-
-    public MockSocialMediaPublisher(Platform platform) {
-        this.platform = platform;
-    }
-
-    public Platform platform() {
-        return platform;
-    }
-
-    public PublishResult publish(String content) {
-        return new PublishResult("mock:" + platform.name().toLowerCase() + ":" + UUID.randomUUID(), "PUBLISHED");
+    public String publish(Platform platform, String content) {
+        System.out.println("Mock publishing to " + platform + ": " + content);
+        return "mock:" + platform.name().toLowerCase() + ":" + UUID.randomUUID();
     }
 }

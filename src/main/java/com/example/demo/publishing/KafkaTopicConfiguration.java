@@ -9,6 +9,11 @@ import org.springframework.kafka.config.TopicBuilder;
 public class KafkaTopicConfiguration {
     @Bean
     NewTopic publishingJobsTopic() {
-        return TopicBuilder.name("publishing.jobs").partitions(3).replicas(1).build();
+        return TopicBuilder.name("publishing.jobs").partitions(1).replicas(1).build();
+    }
+
+    @Bean
+    NewTopic publishingJobsDeadLetterTopic() {
+        return TopicBuilder.name("publishing.jobs.DLT").partitions(1).replicas(1).build();
     }
 }

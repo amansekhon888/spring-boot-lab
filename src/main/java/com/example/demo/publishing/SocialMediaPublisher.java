@@ -1,11 +1,6 @@
 package com.example.demo.publishing;
 
-/**
- * Adapter boundary: return the platform's remote id or throw on a retryable API
- * failure.
- */
+/** A tiny interface so the consumer can publish without knowing a real platform API. */
 public interface SocialMediaPublisher {
-    Platform platform();
-
-    PublishResult publish(String content);
+    String publish(Platform platform, String content);
 }

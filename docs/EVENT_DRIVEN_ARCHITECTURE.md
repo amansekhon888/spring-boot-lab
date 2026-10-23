@@ -1,31 +1,43 @@
-# Event-driven architecture
+# A message, step by step
 
-An event says that something happened or should be handled. A queue separates the time the scheduler detects due work from the time a social publisher handles it. The application remains the owner of current job state in SQL; Kafka transports the work notification and provides buffering and consumer groups.
+This short note follows one publication ticket through Kafka. Read [ARCHITECTURE.md](ARCHITECTURE.md) first for the full beginner guide.
+
+## What does “event-driven” mean?
+
+An event is a note saying that something should happen or has happened. In this project, the note says: “Please publish post number 42.” The scheduler writes this note to Kafka. A listener reads it later. The scheduler does not need to know how the listener works.
+
+That loose connection is useful when the sender and receiver should work independently. It is extra machinery when they do not need that separation.
+
+## The exact note
+
+```json
+{"publicationId":42}
+```
+
+The event is intentionally small. Kafka transports the note; PostgreSQL stores the full post. This avoids copying the post text into every message and gives the listener one place to look up the current status.
+
+## The route through the code
 
 ```mermaid
 flowchart LR
-  API[Schedule API] --> DB[(SQL job + outbox)]
-  Timer[@Scheduled poller] --> DB
-  DB --> Relay[Outbox relay]
-  Relay --> Topic[(Kafka publishing.jobs)]
-  Topic --> Worker[Kafka consumer]
-  Worker --> Idem[(Processed event table)]
-  Worker --> Adapter[Platform adapter]
-  Topic -. exhausted attempts .-> DLT[(publishing.jobs.DLT)]
+    Due[Due database row] --> Timer[PublishingScheduler]
+    Timer --> Send[PublishingProducer / KafkaTemplate]
+    Send --> Topic[publishing.jobs]
+    Topic --> Read[PublishingConsumer / @KafkaListener]
+    Read --> Check{Already PUBLISHED?}
+    Check -->|Yes| Skip[Skip duplicate]
+    Check -->|No| Mock[MockSocialMediaPublisher]
+    Mock --> Save[Save PUBLISHED in database]
 ```
 
-## The job state machine
+`KafkaTemplate.send` writes the event. `@KafkaListener` marks the method Spring should call when a record is available. The consumer group name identifies this set of readers; Kafka remembers each group's place with an offset, like a bookmark.
 
-`SCHEDULED` waits for its timestamp. A locked row becomes `QUEUED` with a lease and outbox event. The consumer sets `PUBLISHING`; success stores the remote id and `PUBLISHED`; exhausted processing becomes observable through the DLT and the database lease recovery handles abandoned claims. Retries use exponential backoff to avoid hammering a recovering provider. A production operator should distinguish retryable HTTP 429/5xx/timeouts from permanent 4xx errors, preserve `Retry-After`, and alert on repeated failures.
+## If the listener fails
 
-Kafka's idempotent producer avoids duplicates during a producer retry session. The SQL idempotency table handles repeated event deliveries after the consumer's successful transaction. Neither makes an arbitrary social HTTP API exactly-once: provider acceptance and the local commit are separate systems. Use provider-supported request keys and reconciliation for ambiguous network outcomes.
+The app tries a failed event two more times, one second apart. If it still fails, the recoverer writes it to `publishing.jobs.DLT`. This lets the main stream continue. In this classroom app, students inspect the DLQ manually; there is no replay screen.
 
-## Lab
+The database status check handles the common duplicate case: once the row is `PUBLISHED`, another copy is ignored. It is deliberately a small example rather than a guarantee against every possible crash timing.
 
-1. Start Compose and observe Kafka's single-node KRaft controller/broker.
-2. Schedule an item in the past; follow SQL state, outbox, topic, and status transitions.
-3. Stop the app between outbox send and sent mark; restart and observe why consumers need idempotency.
-4. Force a publisher exception in a local test and inspect exponential retry topics and the DLT.
-5. Scale application instances and verify the database row lock permits one claim per item.
+## Exercise
 
-KRaft stores Kafka metadata in Kafka itself rather than requiring ZooKeeper. Compose is a local single-broker lab and has no production durability or availability guarantees.
+Make `MockSocialMediaPublisher.publish` throw an exception. Observe the retry log and the DLT. Restore the mock. Then discuss: should the application automatically replay every old DLQ message? What if the original problem (for example, invalid post text) has not been fixed?

@@ -3,12 +3,9 @@ package com.example.demo.publishing;
 import jakarta.persistence.*;
 import java.time.Instant;
 
-/**
- * A publishable unit. leaseUntil makes abandoned claims recoverable after a
- * process crash.
- */
+/** One scheduled message and its simple status, stored in the database. */
 @Entity
-@Table(name = "scheduled_publications", indexes = @Index(name = "ix_pub_due", columnList = "status,scheduled_at"))
+@Table(name = "scheduled_publications")
 public class ScheduledPublication {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,11 +20,7 @@ public class ScheduledPublication {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PublishStatus status = PublishStatus.SCHEDULED;
-    private Instant leaseUntil;
-    private int attempts;
     private String remoteId;
-    @Column(length = 1000)
-    private String lastError;
 
     protected ScheduledPublication() {
     }
@@ -58,26 +51,13 @@ public class ScheduledPublication {
         return status;
     }
 
-    public int getAttempts() {
-        return attempts;
-    }
-
     public String getRemoteId() {
         return remoteId;
     }
 
-    public String getLastError() {
-        return lastError;
-    }
-
-    public void claim(Instant until) {
+    /** Called when the scheduler has handed this job to Kafka. */
+    public void queued() {
         status = PublishStatus.QUEUED;
-        leaseUntil = until;
-        attempts++;
-    }
-
-    public boolean leaseExpired(Instant now) {
-        return status == PublishStatus.QUEUED && leaseUntil != null && leaseUntil.isBefore(now);
     }
 
     public void publishing() {
@@ -87,19 +67,9 @@ public class ScheduledPublication {
     public void published(String id) {
         status = PublishStatus.PUBLISHED;
         remoteId = id;
-        leaseUntil = null;
-        lastError = null;
     }
 
-    public void retry(String error) {
-        status = PublishStatus.RETRY;
-        lastError = error;
-        leaseUntil = null;
-    }
-
-    public void failed(String error) {
+    public void failed() {
         status = PublishStatus.FAILED;
-        lastError = error;
-        leaseUntil = null;
     }
 }

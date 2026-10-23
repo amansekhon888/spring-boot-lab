@@ -12,13 +12,13 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.util.backoff.FixedBackOff;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Explicit config keeps the JSON contract visible to beginners and works
- * consistently with Boot 4.
- */
+/** Kafka needs a producer, a consumer, and JSON converters to send our Java record as a message. */
 @Configuration
 @EnableKafka
 public class KafkaConfiguration {
@@ -28,6 +28,7 @@ public class KafkaConfiguration {
         p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
         p.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         p.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        // These settings let Kafka retry temporary broker hiccups while sending.
         p.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
         p.put(ProducerConfig.RETRIES_CONFIG, 10);
         p.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 500);
@@ -51,9 +52,14 @@ public class KafkaConfiguration {
 
     @Bean
     ConcurrentKafkaListenerContainerFactory<String, PublishEvent> kafkaListenerContainerFactory(
-            ConsumerFactory<String, PublishEvent> factory) {
+            ConsumerFactory<String, PublishEvent> factory,
+            KafkaTemplate<Object, Object> kafkaTemplate) {
         var f = new ConcurrentKafkaListenerContainerFactory<String, PublishEvent>();
         f.setConsumerFactory(factory);
+        // Try a failed event twice more, one second apart, then send it to publishing.jobs.DLT.
+        var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
+                (record, error) -> new org.apache.kafka.common.TopicPartition("publishing.jobs.DLT", record.partition()));
+        f.setCommonErrorHandler(new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2L)));
         return f;
     }
 }

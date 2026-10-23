@@ -2,22 +2,29 @@ package com.example.demo.publishing;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import java.time.Duration;
 
 /**
- * Polling is intentionally short and bounded; Kafka and platform calls never
- * run inside the claim transaction.
+ * A timer asks the service to find a few due jobs and put their ids on Kafka.
  */
 @Component
 public class PublishingScheduler {
-    private final PublishingService service;
+    private final PublicationRepository jobs;
+    private final PublishingProducer producer;
 
-    public PublishingScheduler(PublishingService s) {
-        service = s;
+    public PublishingScheduler(PublicationRepository jobs, PublishingProducer producer) {
+        this.jobs = jobs;
+        this.producer = producer;
     }
 
     @Scheduled(fixedDelayString = "${app.publishing.poll-ms:3000}")
     public void poll() {
-        service.enqueueDue(25, Duration.ofMinutes(2));
+        var dueJobs = jobs.findByStatusAndScheduledAtBeforeOrderByScheduledAt(
+                PublishStatus.SCHEDULED, java.time.Instant.now(), org.springframework.data.domain.PageRequest.of(0, 10));
+        for (var job : dueJobs) {
+            // Queue status stops the next timer tick from sending the same post again.
+            job.queued();
+            jobs.save(job);
+            producer.send(job.getId());
+        }
     }
 }
